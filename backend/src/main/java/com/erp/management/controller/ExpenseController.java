@@ -1,0 +1,3 @@
+package com.erp.management.controller;
+import com.erp.management.entity.Expense; import com.erp.management.repository.ExpenseRepository; import jakarta.validation.Valid; import org.springframework.data.domain.Sort; import org.springframework.http.*; import org.springframework.web.bind.annotation.*; import java.util.*;
+@RestController @RequestMapping("/api/expenses") public class ExpenseController { private final ExpenseRepository expenses; public ExpenseController(ExpenseRepository e){expenses=e;} @PostMapping("/add") ResponseEntity<Expense> add(@Valid @RequestBody Expense e){e.id=null;return ResponseEntity.status(HttpStatus.CREATED).body(expenses.save(e));} @GetMapping("/all") List<Expense> all(){return expenses.findAll(Sort.by(Sort.Direction.DESC,"date"));} }

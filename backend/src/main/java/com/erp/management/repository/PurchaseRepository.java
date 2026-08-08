@@ -1,0 +1,1 @@
+package com.erp.management.repository; import com.erp.management.entity.Purchase; import org.springframework.data.jpa.repository.JpaRepository; public interface PurchaseRepository extends JpaRepository<Purchase,Long>{}

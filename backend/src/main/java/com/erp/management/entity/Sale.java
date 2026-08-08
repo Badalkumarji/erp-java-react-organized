@@ -1,0 +1,3 @@
+package com.erp.management.entity;
+import jakarta.persistence.*; import java.time.Instant; import java.util.*;
+@Entity public class Sale { @Id @GeneratedValue(strategy=GenerationType.IDENTITY) public Long id; @Column(unique=true) public String invoiceNo; public String customerName; @ElementCollection @CollectionTable(name="sale_items",joinColumns=@JoinColumn(name="sale_id")) public List<SaleItem> items=new ArrayList<>(); public Double subTotal=0.0; public Double taxAmount=0.0; public Double grandTotal=0.0; public Double paidAmount=0.0; public Double dueAmount=0.0; public String paymentMode; public Instant createdAt=Instant.now(); }

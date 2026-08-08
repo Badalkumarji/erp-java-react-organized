@@ -1,0 +1,1 @@
+package com.erp.management.repository; import com.erp.management.entity.Customer; import org.springframework.data.jpa.repository.JpaRepository; import java.util.*; public interface CustomerRepository extends JpaRepository<Customer,Long>{Optional<Customer> findByName(String name);}

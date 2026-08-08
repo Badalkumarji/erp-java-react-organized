@@ -1,0 +1,28 @@
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# React / Node
+node_modules/
+Frontend/node_modules/
+Frontend/build/
+
+# Java / Maven
+backend/target/
+*.class
+
+# H2 Database
+data/*.mv.db
+data/*.trace.db
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
