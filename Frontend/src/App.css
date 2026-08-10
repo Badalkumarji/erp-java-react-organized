@@ -813,3 +813,19 @@ button.secondary:hover {
   .quick-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
   .quick-action { justify-content: center; }
 }
+
+.erp-logout-button {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 1000;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 15px;
+  background: #1f2937;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0,0,0,.15);
+}
+.erp-logout-button:hover { opacity: .9; }

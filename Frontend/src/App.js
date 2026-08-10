@@ -4,8 +4,32 @@ import { jsPDF } from 'jspdf';
 import { PackagePlus, RefreshCw } from 'lucide-react';
 import { formatInr } from './utils/currency';
 import './App.css';
+import AuthScreen from './AuthScreen';
 
-const api = axios.create({ baseURL: 'http://localhost:5000/api' });
+const api = axios.create({
+  baseURL: `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api`,
+});
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('erp_token');
+  if (token) {
+    config.headers = config.headers || {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401 && localStorage.getItem('erp_token')) {
+      localStorage.removeItem('erp_token');
+      localStorage.removeItem('erp_user');
+      window.location.reload();
+    }
+    return Promise.reject(error);
+  }
+);
 
 const defaultProduct = {
   name: '',
@@ -34,6 +58,14 @@ const receiptCompanyInfo = {
 };
 
 function App() {
+  const [authenticated, setAuthenticated] = useState(Boolean(localStorage.getItem('erp_token')));
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('erp_user') || 'null');
+    } catch {
+      return null;
+    }
+  });
   const [view, setView] = useState('dashboard');
   const [products, setProducts] = useState([]);
   const [people, setPeople] = useState([]);
@@ -67,9 +99,23 @@ function App() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const handleAuthenticated = (data) => {
+    localStorage.setItem('erp_token', data.token);
+    localStorage.setItem('erp_user', JSON.stringify(data.user || null));
+    setCurrentUser(data.user || null);
+    setAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('erp_token');
+    localStorage.removeItem('erp_user');
+    setAuthenticated(false);
+    setCurrentUser(null);
+  };
+
   useEffect(() => {
-    fetchAll();
-  }, []);
+    if (authenticated) fetchAll();
+  }, [authenticated]);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -229,19 +275,20 @@ function App() {
     setSaleItems((items) => items.filter((_, idx) => idx !== index));
   };
 
-  const saleSubTotal = useMemo(
-    () => saleItems.reduce((total, item) => total + Number(item.total || 0), 0),
-    [saleItems]
-  );
+  const saleSubTotal = saleItems.reduce(
+  (total, item) => total + Number(item.total || 0),
+  0
+);
 
-  const saleTaxableAmount = useMemo(
-    () => saleItems.reduce((total, item) => total + Number(item.taxableAmount || 0), 0),
-    [saleItems]
-  );
-  const saleGstAmount = useMemo(
-    () => saleItems.reduce((total, item) => total + Number(item.gstAmount || 0), 0),
-    [saleItems]
-  );
+const saleTaxableAmount = saleItems.reduce(
+  (total, item) => total + Number(item.taxableAmount || 0),
+  0
+);
+
+const saleGstAmount = saleItems.reduce(
+  (total, item) => total + Number(item.gstAmount || 0),
+  0
+);
 
   const salePaid = Number(salePaidAmount || 0);
   const saleDue = Math.max(0, saleSubTotal - salePaid);
@@ -489,44 +536,63 @@ function App() {
     (product) => product.lowStockLimit && product.quantity <= product.lowStockLimit
   );
 
-  const monthlyPerformance = useMemo(() => {
-    const months = Array.from({ length: 6 }, (_, index) => {
-      const date = new Date();
-      date.setMonth(date.getMonth() - (5 - index));
-      return {
-        label: date.toLocaleString('en', { month: 'short' }),
-        revenue: 0,
-        expense: 0
-      };
-    });
+const monthlyPerformance = (() => {
+  const months = Array.from({ length: 6 }, (_, index) => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - (5 - index));
 
-    sales.forEach((sale) => {
-      const saleDate = sale.createdAt ? new Date(sale.createdAt) : new Date();
-      const index = months.findIndex(
-        (month) => month.label === saleDate.toLocaleString('en', { month: 'short' })
+    return {
+      label: date.toLocaleString('en', { month: 'short' }),
+      revenue: 0,
+      expense: 0
+    };
+  });
+
+  sales.forEach((sale) => {
+    const saleDate = sale.createdAt
+      ? new Date(sale.createdAt)
+      : new Date();
+
+    const index = months.findIndex(
+      (month) =>
+        month.label ===
+        saleDate.toLocaleString('en', { month: 'short' })
+    );
+
+    if (index >= 0) {
+      months[index].revenue += Number(
+        sale.totalAmount ?? sale.grandTotal ?? 0
       );
-      if (index >= 0) {
-        months[index].revenue += Number(sale.totalAmount ?? sale.grandTotal ?? 0);
-      }
-    });
+    }
+  });
 
-    expenses.forEach((expense) => {
-      const expenseDate = expense.createdAt ? new Date(expense.createdAt) : new Date();
-      const index = months.findIndex(
-        (month) => month.label === expenseDate.toLocaleString('en', { month: 'short' })
-      );
-      if (index >= 0) {
-        months[index].expense += Number(expense.amount || 0);
-      }
-    });
+  expenses.forEach((expense) => {
+    const expenseDate = expense.createdAt
+      ? new Date(expense.createdAt)
+      : new Date();
 
-    const maxValue = Math.max(...months.map((month) => Math.max(month.revenue, month.expense, 1)));
-    return months.map((month) => ({
-      ...month,
-      revenueHeight: Math.max(8, (month.revenue / maxValue) * 100),
-      expenseHeight: Math.max(8, (month.expense / maxValue) * 100)
-    }));
-  }, [sales, expenses]);
+    const index = months.findIndex(
+      (month) =>
+        month.label ===
+        expenseDate.toLocaleString('en', { month: 'short' })
+    );
+
+    if (index >= 0) {
+      months[index].expense += Number(expense.amount || 0);
+    }
+  });
+
+  const maxValue = Math.max(
+    ...months.map((month) => Math.max(month.revenue, month.expense)),
+    1
+  );
+
+  return months.map((month) => ({
+    ...month,
+    revenueHeight: Math.max(8, (month.revenue / maxValue) * 100),
+    expenseHeight: Math.max(8, (month.expense / maxValue) * 100)
+  }));
+})();
 
   const ledgerEntries = useMemo(() => {
     const salesEntries = sales.map((sale) => ({
@@ -741,6 +807,10 @@ function App() {
       worstMonth
     };
   }, [comparisonData]);
+
+  if (!authenticated) {
+    return <AuthScreen api={api} onAuthenticated={handleAuthenticated} />;
+  }
 
   return (
     <div className="app-shell">
@@ -2057,6 +2127,14 @@ function App() {
           )}
         </section>
       </main>
+      <button
+        type="button"
+        className="erp-logout-button"
+        onClick={handleLogout}
+        title={`Logout${currentUser?.name ? ` ${currentUser.name}` : ''}`}
+      >
+        Logout
+      </button>
     </div>
   );
 }
